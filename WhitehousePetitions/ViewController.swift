@@ -16,9 +16,13 @@ final class ViewController: UITableViewController {
 	override func viewDidLoad() {
 		super.viewDidLoad()
 
-		let urlString = "https://www.hackingwithswift.com/samples/petitions-1.json"
+		let urlString = navigationController?.tabBarItem.tag == 0 ?
+			"https://www.hackingwithswift.com/samples/petitions-1.json" :
+			"https://www.hackingwithswift.com/samples/petitions-2.json"
 		if let url = URL(string: urlString), let data = try? Data(contentsOf: url) {
 			parse(json: data)
+		} else {
+			showError()
 		}
 	}
 
@@ -27,6 +31,13 @@ final class ViewController: UITableViewController {
 		guard let jsonPetitions = try? JSONDecoder().decode(Petitions.self, from: json) else { return }
 		petitions = jsonPetitions.results
 		tableView.reloadData()
+	}
+
+	// MARK: - Errors Handling
+	private func showError() {
+		let alertController = UIAlertController(title: "Loading error", message: "There was a problem loading the feed; please check your connection and try again.", preferredStyle: .alert)
+		alertController.addAction(UIAlertAction(title: "OK", style: .default))
+		present(alertController, animated: true)
 	}
 }
 
@@ -43,5 +54,15 @@ extension ViewController {
 		cell.textLabel?.text = petition.title
 		cell.detailTextLabel?.text = petition.body
 		return cell
+	}
+}
+
+// MARK: - UITableViewDelegate
+extension ViewController {
+
+	override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+		let viewController = DetailViewController()
+		viewController.detailItem = petitions[indexPath.row]
+		navigationController?.pushViewController(viewController, animated: true)
 	}
 }
