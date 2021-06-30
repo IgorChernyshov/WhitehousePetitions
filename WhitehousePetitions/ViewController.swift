@@ -18,7 +18,7 @@ final class ViewController: UITableViewController {
 		super.viewDidLoad()
 		addAboutButton()
 		addSearchButton()
-		loadPetitions()
+		performSelector(inBackground: #selector(loadPetitions), with: nil)
 	}
 
 	// MARK: - UI Configuration
@@ -31,32 +31,34 @@ final class ViewController: UITableViewController {
 		navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .search, target: self, action: #selector(showSearchField))
 	}
 
-	// MARK: - Petitions
-	private func loadPetitions() {
+	// MARK: - Data Handling
+	private func parse(json: Data) {
+		guard let jsonPetitions = try? JSONDecoder().decode(Petitions.self, from: json) else {
+			performSelector(onMainThread: #selector(showError), with: nil, waitUntilDone: false)
+			return
+		}
+		petitions = jsonPetitions.results
+		tableView.performSelector(onMainThread: #selector(UITableView.reloadData), with: nil, waitUntilDone: false)
+	}
+
+	// MARK: - Selectors
+	@objc private func loadPetitions() {
 		let urlString = navigationController?.tabBarItem.tag == 0 ?
 			"https://www.hackingwithswift.com/samples/petitions-1.json" :
 			"https://www.hackingwithswift.com/samples/petitions-2.json"
 		if let url = URL(string: urlString), let data = try? Data(contentsOf: url) {
-			parse(json: data)
+			self.parse(json: data)
 		} else {
-			showError()
+			performSelector(onMainThread: #selector(showError), with: nil, waitUntilDone: false)
 		}
 	}
 
-	private func parse(json: Data) {
-		guard let jsonPetitions = try? JSONDecoder().decode(Petitions.self, from: json) else { return }
-		petitions = jsonPetitions.results
-		tableView.reloadData()
-	}
-
-	// MARK: - Errors Handling
-	private func showError() {
+	@objc private func showError() {
 		let alertController = UIAlertController(title: "Loading error", message: "There was a problem loading the feed; please check your connection and try again.", preferredStyle: .alert)
 		alertController.addAction(UIAlertAction(title: "OK", style: .default))
-		present(alertController, animated: true)
+		self.present(alertController, animated: true)
 	}
 
-	// MARK: - Selectors
 	@objc private func showAboutAlert() {
 		let alertController = UIAlertController(title: "About", message: "The data comes from the We The People API of the Whitehouse.", preferredStyle: .alert)
 		alertController.addAction(UIAlertAction(title: "OK", style: .default))
