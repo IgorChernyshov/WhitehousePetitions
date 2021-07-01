@@ -18,7 +18,7 @@ final class ViewController: UITableViewController {
 		super.viewDidLoad()
 		addAboutButton()
 		addSearchButton()
-		performSelector(inBackground: #selector(loadPetitions), with: nil)
+		loadPetitions()
 	}
 
 	// MARK: - UI Configuration
@@ -38,7 +38,7 @@ final class ViewController: UITableViewController {
 			return
 		}
 		petitions = jsonPetitions.results
-		tableView.performSelector(onMainThread: #selector(UITableView.reloadData), with: nil, waitUntilDone: false)
+		reloadTableViewOnMainThread()
 	}
 
 	// MARK: - Selectors
@@ -46,10 +46,12 @@ final class ViewController: UITableViewController {
 		let urlString = navigationController?.tabBarItem.tag == 0 ?
 			"https://www.hackingwithswift.com/samples/petitions-1.json" :
 			"https://www.hackingwithswift.com/samples/petitions-2.json"
-		if let url = URL(string: urlString), let data = try? Data(contentsOf: url) {
-			self.parse(json: data)
-		} else {
-			performSelector(onMainThread: #selector(showError), with: nil, waitUntilDone: false)
+		DispatchQueue.global(qos: .userInteractive).async {
+			if let url = URL(string: urlString), let data = try? Data(contentsOf: url) {
+				self.parse(json: data)
+			} else {
+				self.performSelector(onMainThread: #selector(self.showError), with: nil, waitUntilDone: false)
+			}
 		}
 	}
 
@@ -69,15 +71,25 @@ final class ViewController: UITableViewController {
 		let alertController = UIAlertController(title: "Search", message: "Enter text to search", preferredStyle: .alert)
 		alertController.addTextField()
 		alertController.addAction(UIAlertAction(title: "OK", style: .default) { [weak alertController, weak self] _ in
-			defer { self?.tableView.reloadData() }
 			guard let searchText = alertController?.textFields?.first?.text, !searchText.isEmpty else {
 				self?.filteredPetitions = nil
+				self?.tableView.reloadData()
 				return
 			}
-			self?.filteredPetitions = self?.petitions.filter { $0.title.contains(searchText) || $0.body.contains(searchText) }
+			DispatchQueue.global(qos: .userInteractive).async {
+				self?.filteredPetitions = self?.petitions.filter { $0.title.contains(searchText) || $0.body.contains(searchText) }
+				self?.reloadTableViewOnMainThread()
+			}
 		})
 		alertController.addAction(UIAlertAction(title: "Cancel", style: .cancel))
 		present(alertController, animated: true)
+	}
+
+	// MARK: - Helpers
+	private func reloadTableViewOnMainThread() {
+		DispatchQueue.main.async {
+			self.tableView.reloadData()
+		}
 	}
 }
 
